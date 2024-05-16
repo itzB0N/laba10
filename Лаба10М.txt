@@ -1,0 +1,79 @@
+import telebot
+from telebot import types
+import sqlite3
+import random
+import csv
+bot = telebot.TeleBot('6885012444:AAE5cSz8P5u6v6nijTr75eq6pQ2f9mmbncQ')
+@bot.message_handler(content_types=['text'])
+def start(message):
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    btn1 = types.KeyboardButton("👋 Поздороваться")
+    btn2 = types.KeyboardButton("Start")
+    markup.add(btn1, btn2)
+    bot.send_message(message.chat.id, text="Привет, {0.first_name}! Я тестовый бот для Алемасова".format(message.from_user), reply_markup=markup)
+    bot.register_next_step_handler(message, func)
+@bot.message_handler(content_types=['text'])
+def func(message):
+    if (message.text == "👋 Поздороваться"):
+        bot.send_message(message.chat.id, text="Привеет.. Удачного дня!!!)")
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        btn1 = types.KeyboardButton('/Start')
+        markup.add(btn1)
+        bot.send_message(message.chat.id, text="Давай начнём", reply_markup=markup)
+        bot.register_next_step_handler(message, start1);
+    else:
+        bot.register_next_step_handler(message, start1);
+@bot.message_handler(content_types=['text'])
+def start1(message):
+    bot.send_message(message.chat.id, "Введите следующую информацию:")
+    bot.send_message(message.chat.id, "Фамилия:")
+    bot.register_next_step_handler(message, get_lastname)
+
+def get_lastname(message):
+    lastname = message.text
+    bot.send_message(message.chat.id, "Имя:")
+    bot.register_next_step_handler(message, get_firstname, lastname)
+
+def get_firstname(message, lastname):
+    firstname = message.text
+    bot.send_message(message.chat.id, "Отчество:")
+    bot.register_next_step_handler(message, get_middlename, lastname, firstname)
+
+def get_middlename(message, lastname, firstname):
+    middlename = message.text
+    bot.send_message(message.chat.id, "Дата рождения (в формате ГГГГ-ММ-ДД):")
+    bot.register_next_step_handler(message, save_data, lastname, firstname, middlename)
+
+def save_data(message, lastname, firstname, middlename):
+    birthday = message.text
+    userid = message.chat.id
+    username = message.chat.first_name
+
+    con = sqlite3.connect('бд.db')
+    cur = con.cursor()
+    cur.execute(
+        '''CREATE TABLE IF NOT EXISTS botsave
+        (id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userid integer,
+        username TEXT,
+        f TEXT,
+        i TEXT,
+        o TEXT,
+        birthday TEXT)'''
+    )
+    cur.execute('''INSERT INTO botsave (userid, username, f, i, o, birthday) VALUES (?, ?, ?, ?, ?, ?)''',
+                (userid, username, lastname, firstname, middlename, birthday))
+
+    cur.execute('''SELECT * FROM botsave''')
+    with open('savecsv.csv', 'w', newline='', encoding='utf-8') as csvfile:
+        csv_writter = csv.writer(csvfile)
+        csv_writter.writerow(['id', 'userid', 'username', 'f', 'i', 'o', 'birthday'])
+        csv_writter.writerows(cur)
+
+    con.commit()
+    con.close()
+
+    bot.reply_to(message, "Сохранено")
+
+if __name__ == '__main__':
+    bot.polling()
